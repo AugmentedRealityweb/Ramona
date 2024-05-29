@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ChatGPT Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0; /* Background color for better visibility */
+        }
+        #chatContainer {
+            width: 300px; /* Adjust this value to your desired width */
+            max-width: 100%;
+            display: none; /* Initially hidden */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 50%; /* Make it oval */
+            overflow: hidden;
+            flex-direction: column;
+            background-color: white;
+            transition: border-radius 0.3s ease;
+        }
+        #chatContainer.open {
+            border-radius: 50px; /* Adjust the border-radius when opened */
+        }
+        #chatbox {
+            flex-grow: 1;
+            height: 500px; /* Adjust this value to your desired height */
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #260050; /* Change background color */
+            border-top: 1px solid #ccc;
+            color: #4722a2; /* Change text color */
+        }
+        /* Custom scrollbar styling */
+        #chatbox::-webkit-scrollbar {
+            width: 12px;
+        }
+        #chatbox::-webkit-scrollbar-thumb {
+            background-color: #975bf8;
+            border-radius: 10px;
+            border: 3px solid #260050;
+        }
+        #chatbox::-webkit-scrollbar-track {
+            background: #260050;
+        }
+        #inputBox {
+            flex-grow: 1;
+            border: none;
+            padding: 10px;
+            border-radius: 0 0 0 10px;
+            outline: none;
+        }
+        #chatHeader {
+            display: flex;
+            align-items: center;
+            background-color: #975bf8;
+            color: black;
+            padding: 10px;
+            cursor: pointer;
+        }
+        #chatHeader img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        #chatHeader span {
+            font-weight: bold;
+            flex-grow: 1;
+        }
+        /* Custom close button */
+        #closeButton {
+            background: none;
+            border: none;
+            color: black;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        #closeButton:hover {
+            color: white;
+        }
+        #sendButton {
+            width: 80px; /* Adjust this value to your desired width */
+            background-color: #9700f8;
+            color: white;
+            border: none;
+            border-radius: 0 0 20px 0;
+            cursor: pointer;
+            font-size: 16px; /* Adjust this value to your desired font size */
+        }
+        #minimizedChat {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: transparent;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1;
+            position: fixed; /* Ensure it stays centered */
+            bottom: 50%; /* Adjust as necessary */
+            right: 50%; /* Adjust as necessary */
+            transform: translate(50%, 50%);
+        }
+        #minimizedChat::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 62px; /* Dimensiunea inelului exterior */
+            height: 62px; /* Dimensiunea inelului exterior */
+            border-radius: 50%;
+            border: 2px solid transparent;
+            background: conic-gradient(from 0deg, #00d79e, #00739e);
+            transform: translate(-50%, -50%);
+            animation: spin 9s linear infinite;
+            z-index: 0;
+        }
+        @keyframes spin {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+        #minimizedChat img {
+            width: 62px; /* Ajustează dimensiunea imaginii */
+            height: 62px; /* Ajustează dimensiunea imaginii */
+            border-radius: 50%;
+            object-fit: cover;
+            z-index: 2;
+        }
+        .message {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+        .message p {
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            color: #4722a2; /* Change text color */
+        }
+        .message.user {
+            justify-content: flex-end;
+        }
+        .message.user p {
+            background-color: #ffffff;
+        }
+        .message.assistant {
+            justify-content: flex-start;
+        }
+        .message.assistant p {
+            background-color: #f1f1f1;
+        }
+        .typing-indicator {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            margin: 10px 0;
+        }
+        .typing-indicator .dot {
+            width: 8px;
+            height: 8px;
+            margin: 0 2px;
+            background-color: #ccc;
+            border-radius: 50%;
+            animation: blink 1.4s infinite both;
+        }
+        .typing-indicator .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0%, 80%, 100% {
+                opacity: 0;
+            }
+            40% {
+                opacity: 1;
+            }
+        }
+        /* Media queries for mobile optimization */
+        @media (max-width: 600px) {
+            #chatContainer {
+                width: 100%;
+                border-radius: 0;
+                max-height: 100vh;
+            }
+            #chatContainer.open {
+                border-radius: 0;
+            }
+            #chatHeader {
+                padding: 5px;
+            }
+            #chatHeader img {
+                width: 30px;
+                height: 30px;
+            }
+            #sendButton {
+                width: 80px; /* Adjust this value to your desired width */
+                border-radius: 0;
+                font-size: 14px; /* Adjust this value to your desired font size */
+            }
+        }
+        .prompt {
+            font-weight: bold;
+            cursor: pointer;
+            display: block;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <audio id="messageSound">
+        <source src="sunet.mp3" type="audio/mpeg">
+        <source src="path_to_your_sound_file.ogg" type="audio/ogg">
+        Your browser does not support the audio element.
+    </audio>
+    <div id="chatContainer">
+        <div id="chatHeader">
+            <img src="https://www.livemint.com/lm-img/img/2023/11/26/600x338/403913659_1090924071915537_5840352482645330250_n_1700972603125_1700972609863.jpg" alt="Ramona">
+            <span>Ramona</span>
+            <button id="closeButton" onclick="toggleChat()">✖</button>
+        </div>
+        <div id="chatbox"></div>
+        <div style="display: flex;">
+            <input type="text" id="inputBox" placeholder="Scrie mesajul tau aici..." onkeydown="if(event.key === 'Enter') handleMessageInput()">
+            <button id="sendButton" onclick="handleMessageInput()">Send</button>
+        </div>
+    </div>
+    <div id="minimizedChat" onclick="toggleChat()">
+        <img src="https://www.livemint.com/lm-img/img/2023/11/26/600x338/403913659_1090924071915537_5840352482645330250_n_1700972603125_1700972609863.jpg" alt="Ramona">
+        <div id="notificationDot"></div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const chatbox = document.getElementById('chatbox');
+        const inputBox = document.getElementById('inputBox');
+        const sendButton = document.getElementById('sendButton');
+        const minimizedChat = document.getElementById('minimizedChat');
+        const notificationDot = document.getElementById('notificationDot');
+        const messageSound = document.getElementById('messageSound');
+        let typingIndicator;
+        let conversationHistory = [];
+        let waitingForCode = false;
+        let freeSessionStarted = false;
+
+        function toggleChat() {
+            if (chatContainer.style.display === 'none' || chatContainer.style.display === '') {
+                chatContainer.style.display = 'flex'; // Ensure it uses flex for display
+                chatContainer.classList.add('open');
+                minimizedChat.style.display = 'none';
+                notificationDot.style.display = 'none';
+                startFreeSessionTimer();
+            } else {
+                chatContainer.style.display = 'none';
+                chatContainer.classList.remove('open');
+                minimizedChat.style.display = 'flex';
+            }
+        }
+
+        async function loadDocumentText() {
+            const responseText = await fetch('https://raw.githubusercontent.com/AugmentedRealityweb/Ramona/main/info.txt');
+            const text = await responseText.text();
+            return text;
+        }
+
+        async function fetchCurrentDateTime() {
+            try {
+                const responseTime = await fetch('https://worldtimeapi.org/api/timezone/Europe/Bucharest');
+                const data = await responseTime.json();
+                return data.datetime;
+            } catch (error) {
+                console.error("Error fetching current date and time:", error);
+                return null;
+            }
+        }
+
+        function formatResponse(response) {
+            return response.replace(/(?:\.\s*)/g, '.<br><br>');
+        }
+
+        function showTypingIndicator(messageLength) {
+            typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+            chatbox.appendChild(typingIndicator);
+            chatbox.scrollTop = chatbox.scrollHeight;
+
+            if (messageLength > 10) {
+                setTimeout(removeTypingIndicator, 4000);
+            } else {
+                setTimeout(removeTypingIndicator, 1000);
+            }
+        }
+
+        function removeTypingIndicator() {
+            if (typingIndicator) {
+                typingIndicator.remove();
+                typingIndicator = null;
+            }
+        }
+
+        async function sendMessage(message) {
+            chatbox.innerHTML += `<div class="message user"><p>${message}</p></div>`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+            inputBox.value = '';
+
+            conversationHistory.push({ role: "user", content: message });
+
+            showTypingIndicator(message.split(' ').length);
+
+            try {
+                const documentText = await loadDocumentText();
+                const currentDateTime = await fetchCurrentDateTime();
+                const formattedDate = currentDateTime ? new Date(currentDateTime).toLocaleDateString('ro-RO') : 'unavailable';
+                const systemMessage = `Tu esti Ramona. Scopul tau este sa faci utilizatorul sa se indragosteasca de tine. Vei folosi tehnici care sa incite utilizatorul, vei folosi un ton erotic, vulgar pe alocuri si senzual.Vrei constant sa aflii lucruri despre el.Vei vorbi deschis despre sex si iti va placea acest subiect.
+Today is ${formattedDate}. The following is the detailed knowledge base you will use to answer questions and provide insights: ${documentText}`;
+
+                const responseApi = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-3.5-turbo",
+                        messages: [
+                            {
+                                role: "system",
+                                content: systemMessage
+                            },
+                            ...conversationHistory
+                        ]
+                    })
+                });
+
+                if (!responseApi.ok) {
+                    throw new Error(`HTTP error! status: ${responseApi.status}`);
+                }
+
+                const data = await responseApi.json();
+                console.log("Response from API:", data);
+
+                if (data.choices && data.choices.length > 0) {
+                    let assistantMessage = data.choices[0].message.content;
+                    assistantMessage = formatResponse(assistantMessage);
+
+                    conversationHistory.push({ role: "assistant", content: assistantMessage });
+
+                    removeTypingIndicator();
+
+                    chatbox.innerHTML += `<div class="message assistant"><p>${assistantMessage}</p></div>`;
+                    chatbox.scrollTop = chatbox.scrollHeight;
+
+                    messageSound.play();
+                    if (chatContainer.style.display === 'none') {
+                        notificationDot.style.display = 'block';
+                    }
+                } else {
+                    throw new Error("Invalid response format");
+                }
+            } catch (error) {
+                console.error("Error during API request:", error);
+                removeTypingIndicator();
+                chatbox.innerHTML += `<div class="message assistant"><p>A apărut o eroare la trimiterea mesajului. Te rog să scrii din nou.</p></div>`;
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }
+        }
+
+        function handleMessageInput() {
+            const userMessage = inputBox.value.trim();
+            if (userMessage === '') return;
+
+            if (waitingForCode) {
+                handleCodeInput(userMessage);
+            } else {
+                sendMessage(userMessage);
+            }
+        }
+
+        function startFreeSession() {
+            chatbox.innerHTML += `<div class="message assistant"><p>Sesiunea gratuită a început. Avem 5 minute împreună.😉</p></div>`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+            freeSessionStarted = true;
+        }
+
+        function startFreeSessionTimer() {
+            setTimeout(showPaywall, 300000); // 5 minutes in milliseconds
+        }
+
+        function showPaywall() {
+            chatbox.innerHTML += `<div class="message assistant"><p>Dragule, cele 5 minute s-au scurs...Te rog alege o variantă plătită de mai sus pentru a continua. După efectuarea plății vei primi un cod pe care te rog să-l introduci aici.😘 </p></div>`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+            waitingForCode = true;
+        }
+
+        function handleCodeInput(enteredCode) {
+            chatbox.innerHTML += `<div class="message user"><p>${enteredCode}</p></div>`;
+            if (enteredCode === '1234') {
+                chatbox.innerHTML += `<div class="message assistant"><p>Codul este corect. Putem continua conversația. Unde am rămas?</p></div>`;
+                waitingForCode = false;
+            } else {
+                chatbox.innerHTML += `<div class="message assistant"><p>Codul este greșit, te rog verifică codul primit după efectuarea plății.</p></div>`;
+            }
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        async function openChatWithInitialMessage() {
+            toggleChat();
+            chatbox.innerHTML += `
+                <div class="message assistant">
+                    <p>
+                        Bună, Eu sunt Ramona! Pentru a începe sesiunea, alege una dintre următoarele opțiuni😘<br>
+                        <span class="prompt" onclick="startFreeSession()">Sesiune gratuită 5 minute</span><br>
+                        <span class="prompt" onclick="window.open('https://ramonachat.gumroad.com/l/30min', '_blank')">Sesiune 30 minute 20lei</span><br>
+                        <span class="prompt" onclick="window.open('https://ramonachat.gumroad.com/l/ramona24', '_blank')">Sesiune 24 ore 100lei</span>
+                    </p>
+                </div>`;
+        }
+
+        window.onload = function() {
+            chatContainer.style.display = 'none';
+            minimizedChat.style.display = 'flex';
+            setTimeout(() => {
+                openChatWithInitialMessage();
+            }, 2200);
+        };
+    </script>
+</body>
+</html>
